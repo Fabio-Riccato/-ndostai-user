@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "325425312200",
+    "project_id": "familytrack-afb30",
+    "storage_bucket": "familytrack-afb30.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:325425312200:android:273527aa8d647664b610fd",
+        "android_client_info": {
+          "package_name": "com.example.ndostai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2LQLYFTw99y691ziPsjugqzOO13kOWSI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

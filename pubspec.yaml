@@ -30,6 +30,7 @@ dependencies:
   geolocator: ^12.0.0
   sensors_plus: ^5.0.1
   permission_handler: ^11.3.1
+  battery_plus: ^6.0.3
 
   # Storage
   flutter_secure_storage: ^9.0.0
@@ -58,16 +59,12 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
   build_runner: ^2.4.11
-  flutter_launcher_icons: ^0.13.1
   riverpod_generator: ^2.4.3
 
 flutter_launcher_icons:
-  android: true
+  android: "launcher_icon"
   ios: true
-  image_path: "assets/images/ndostai.png" # Questa verrà usata per iOS e versioni vecchie di Android
-
-  adaptive_icon_background: "#3282B8" # Usa un colore che richiama lo sfondo dell'immagine (es. il blu del logo)
-  adaptive_icon_foreground: "assets/images/ndostai.png" #
+  image_path: "assets/images/ndostai.png"
 
 flutter:
   uses-material-design: true

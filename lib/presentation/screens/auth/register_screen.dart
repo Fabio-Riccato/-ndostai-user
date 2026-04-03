@@ -15,22 +15,29 @@ class RegisterScreen extends ConsumerStatefulWidget {
 }
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
-  final _formKey    = GlobalKey<FormState>();
-  final _emailCtrl  = TextEditingController();
-  final _passCtrl   = TextEditingController();
-  final _nameCtrl   = TextEditingController();
-  bool _obscure     = true;
+  final _formKey   = GlobalKey<FormState>();
+  final _emailCtrl = TextEditingController();
+  final _passCtrl  = TextEditingController();
+  final _nameCtrl  = TextEditingController();
+  bool _obscure    = true;
   File? _avatar;
 
   @override
   void dispose() {
-    _emailCtrl.dispose(); _passCtrl.dispose(); _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
+    _nameCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _pickAvatar() async {
     final picker = ImagePicker();
-    final xf = await picker.pickImage(source: ImageSource.gallery, maxWidth: 512, imageQuality: 80);
+    final xf = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 85,
+    );
     if (xf != null) setState(() => _avatar = File(xf.path));
   }
 
@@ -66,118 +73,193 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   onPressed: () => context.go('/login'),
                 ),
                 const Gap(12),
-                const Text('Crea account', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
+                const Text('Crea account',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
                 const Gap(6),
-                Text('Inizia a condividere la tua posizione', style: TextStyle(color: Colors.white.withOpacity(0.5))),
-                const Gap(32),
+                Text('Inizia a condividere la tua posizione',
+                    style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                const Gap(28),
 
-                // Avatar picker
+                // ── Avatar picker ──────────────────────────────────
                 Center(
                   child: GestureDetector(
                     onTap: _pickAvatar,
                     child: Stack(
                       children: [
-                        CircleAvatar(
-                          radius: 48,
-                          backgroundColor: AppTheme.cardDark,
-                          backgroundImage: _avatar != null ? FileImage(_avatar!) : null,
-                          child: _avatar == null
-                            ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                                const Icon(Icons.camera_alt_outlined, color: AppTheme.primary, size: 28),
-                                const Gap(4),
-                                Text('Foto', style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 11)),
-                              ])
-                            : null,
+                        Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppTheme.cardDark,
+                            border: Border.all(
+                              color: _avatar != null
+                                  ? AppTheme.primary
+                                  : Colors.white24,
+                              width: 2,
+                            ),
+                          ),
+                          child: _avatar != null
+                              ? ClipOval(
+                            child: Image.file(_avatar!,
+                                fit: BoxFit.cover,
+                                width: 96,
+                                height: 96),
+                          )
+                              : Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.camera_alt_outlined,
+                                  color: AppTheme.primary, size: 28),
+                              const Gap(4),
+                              Text('Foto',
+                                  style: TextStyle(
+                                      color: Colors.white.withOpacity(0.5),
+                                      fontSize: 11)),
+                            ],
+                          ),
                         ),
                         if (_avatar != null)
                           Positioned(
-                            right: 0, bottom: 0,
+                            right: 0,
+                            bottom: 0,
                             child: Container(
                               padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(color: AppTheme.primary, shape: BoxShape.circle),
-                              child: const Icon(Icons.edit, size: 14, color: Colors.white),
+                              decoration: const BoxDecoration(
+                                  color: AppTheme.primary,
+                                  shape: BoxShape.circle),
+                              child: const Icon(Icons.edit_rounded,
+                                  size: 14, color: Colors.white),
                             ),
                           ),
                       ],
                     ),
                   ),
                 ),
-                Center(child: Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Text('(opzionale)', style: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 12)),
-                )),
-                const Gap(28),
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text('(opzionale — tocca per scegliere)',
+                        style: TextStyle(
+                            color: Colors.white.withOpacity(0.3),
+                            fontSize: 12)),
+                  ),
+                ),
+                const Gap(24),
 
+                // ── Nome utente ────────────────────────────────────
                 _label('Nome utente'),
                 const Gap(8),
                 TextFormField(
                   controller: _nameCtrl,
                   style: const TextStyle(color: Colors.white),
+                  textInputAction: TextInputAction.next,
                   decoration: const InputDecoration(
                     hintText: 'Come ti chiami?',
-                    prefixIcon: Icon(Icons.person_outline, color: AppTheme.primary),
+                    prefixIcon:
+                    Icon(Icons.person_outline, color: AppTheme.primary),
                   ),
-                  validator: (v) => (v?.trim().length ?? 0) >= 2 ? null : 'Minimo 2 caratteri',
+                  validator: (v) => (v?.trim().length ?? 0) >= 2
+                      ? null
+                      : 'Minimo 2 caratteri',
                 ),
                 const Gap(16),
 
+                // ── Email ──────────────────────────────────────────
                 _label('Email'),
                 const Gap(8),
                 TextFormField(
                   controller: _emailCtrl,
                   keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  textInputAction: TextInputAction.next,
                   style: const TextStyle(color: Colors.white),
                   decoration: const InputDecoration(
                     hintText: 'nome@email.com',
-                    prefixIcon: Icon(Icons.email_outlined, color: AppTheme.primary),
+                    prefixIcon:
+                    Icon(Icons.email_outlined, color: AppTheme.primary),
                   ),
-                  validator: (v) => (v?.contains('@') ?? false) ? null : 'Email non valida',
+                  validator: (v) =>
+                  (v?.contains('@') ?? false) ? null : 'Email non valida',
                 ),
                 const Gap(16),
 
+                // ── Password ───────────────────────────────────────
                 _label('Password'),
                 const Gap(8),
                 TextFormField(
                   controller: _passCtrl,
                   obscureText: _obscure,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _submit(),
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    hintText: 'Minimo 8 car., maiuscola, numero, simbolo',
-                    prefixIcon: const Icon(Icons.lock_outline, color: AppTheme.primary),
+                    hintText: 'Min 8 car., maiusc., numero, simbolo',
+                    prefixIcon: const Icon(Icons.lock_outline,
+                        color: AppTheme.primary),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: Colors.white38),
+                      icon: Icon(
+                        _obscure
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        color: Colors.white38,
+                      ),
                       onPressed: () => setState(() => _obscure = !_obscure),
                     ),
                   ),
                   validator: (v) {
                     if (v == null || v.length < 8) return 'Minimo 8 caratteri';
-                    if (!RegExp(r'[A-Z]').hasMatch(v)) return 'Serve almeno una maiuscola';
-                    if (!RegExp(r'\d').hasMatch(v)) return 'Serve almeno un numero';
-                    if (!RegExp(r'[^A-Za-z0-9]').hasMatch(v)) return 'Serve almeno un simbolo';
+                    if (!RegExp(r'[A-Z]').hasMatch(v))
+                      return 'Serve almeno una maiuscola';
+                    if (!RegExp(r'\d').hasMatch(v))
+                      return 'Serve almeno un numero';
+                    if (!RegExp(r'[^A-Za-z0-9]').hasMatch(v))
+                      return 'Serve almeno un simbolo speciale';
                     return null;
                   },
                 ),
-                const Gap(12),
+                const Gap(16),
 
+                // ── Errore ─────────────────────────────────────────
                 if (auth.error != null)
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(13),
                     decoration: BoxDecoration(
                       color: AppTheme.danger.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppTheme.danger.withOpacity(0.4)),
+                      borderRadius: BorderRadius.circular(12),
+                      border:
+                      Border.all(color: AppTheme.danger.withOpacity(0.5)),
                     ),
-                    child: Text(auth.error!, style: const TextStyle(color: AppTheme.danger, fontSize: 13)),
+                    child: Row(children: [
+                      const Icon(Icons.error_outline_rounded,
+                          color: AppTheme.danger, size: 18),
+                      const Gap(10),
+                      Expanded(
+                        child: Text(auth.error!,
+                            style: const TextStyle(
+                                color: AppTheme.danger, fontSize: 13)),
+                      ),
+                    ]),
                   ),
 
-                const Gap(32),
-                GradientButton(label: 'Registrati', loading: auth.loading, onTap: _submit),
-                const Gap(24),
+                const Gap(28),
+                GradientButton(
+                  label: 'Registrati',
+                  loading: auth.loading,
+                  onTap: auth.loading ? null : _submit,
+                ),
+                const Gap(20),
+
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Text('Hai già un account? ', style: TextStyle(color: Colors.white.withOpacity(0.5))),
+                  Text('Hai già un account? ',
+                      style: TextStyle(color: Colors.white.withOpacity(0.5))),
                   GestureDetector(
                     onTap: () => context.go('/login'),
-                    child: const Text('Accedi', style: TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600)),
+                    child: const Text('Accedi',
+                        style: TextStyle(
+                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w600)),
                   ),
                 ]),
                 const Gap(40),
@@ -189,5 +271,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _label(String t) => Text(t, style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 13));
+  Widget _label(String t) => Text(t,
+      style: const TextStyle(
+          color: Colors.white70, fontWeight: FontWeight.w600, fontSize: 13));
 }

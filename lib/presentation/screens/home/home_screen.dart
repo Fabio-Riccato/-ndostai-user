@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:gap/gap.dart';
 import '../../../data/repositories/providers.dart';
+import '../../../data/services/api_service.dart';
 import '../../../data/repositories/auth_provider.dart';
 import '../../../data/services/location_service.dart';
 import '../../../data/services/ws_service.dart';
@@ -34,6 +36,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     // Connect WebSocket
     await WsService().connect();
+
+    // Registra il token FCM per le notifiche push
+    try {
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        await ApiService().updateDeviceToken(fcmToken);
+        debugPrint('[FCM] Token registered: $fcmToken');
+      }
+    } catch (e) {
+      debugPrint('[FCM] Token error: $e');
+    }
 
     // Load circles & members
     await ref.read(circlesProvider.notifier).load();

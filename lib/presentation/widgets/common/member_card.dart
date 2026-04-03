@@ -24,51 +24,73 @@ class MemberCard extends ConsumerWidget {
     return InkWell(
       onTap: () => context.push('/trips/${member.id}?circleId=$circleId'),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Avatar + battery
-            Stack(
-              clipBehavior: Clip.none,
-              children: [
-                _Avatar(member: member),
-                Positioned(
-                  bottom: -4, left: 0, right: 0,
-                  child: _BatteryBadge(level: member.batteryLevel),
-                ),
-              ],
+            // Avatar + battery sotto
+            SizedBox(
+              width: 56,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  _Avatar(member: member),
+                  Positioned(
+                    bottom: -6,
+                    child: _BatteryBadge(level: member.batteryLevel),
+                  ),
+                ],
+              ),
             ),
             const Gap(14),
 
-            // Info
+            // Testo centrale — Expanded evita overflow
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(children: [
-                    Text(
-                      isSelf ? '${member.username} (tu)' : member.username,
-                      style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-                    ),
-                    const Gap(6),
-                    if (member.isAdmin)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppTheme.warning.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(6),
+                  // Nome + badge admin in un Row con Flexible
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          isSelf ? '${member.username} (tu)' : member.username,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.w600, fontSize: 15),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
                         ),
-                        child: const Text('admin', style: TextStyle(color: AppTheme.warning, fontSize: 10, fontWeight: FontWeight.w600)),
                       ),
-                  ]),
-                  const Gap(4),
+                      if (member.isAdmin) ...[
+                        const Gap(6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppTheme.warning.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: const Text('admin',
+                              style: TextStyle(
+                                  color: AppTheme.warning,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const Gap(3),
                   _LocationText(member: member),
                 ],
               ),
             ),
 
-            // Activity icon
-            _ActivityIcon(activity: member.activityStatus, isOnline: member.isOnline),
+            const Gap(8),
+            // Icona attività a destra
+            _ActivityIcon(
+                activity: member.activityStatus, isOnline: member.isOnline),
           ],
         ),
       ),
@@ -84,35 +106,40 @@ class _Avatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Widget img = member.avatarUrl != null
-      ? CachedNetworkImage(
-          imageUrl: member.avatarUrl!.startsWith('http')
-            ? member.avatarUrl!
-            : '${AppConstants.baseUrl}${member.avatarUrl}',
-          fit: BoxFit.cover,
-          placeholder: (_, __) => _initials(),
-          errorWidget: (_, __, ___) => _initials(),
-        )
-      : _initials();
+        ? CachedNetworkImage(
+      imageUrl: member.avatarUrl!.startsWith('http')
+          ? member.avatarUrl!
+          : '${AppConstants.baseUrl}${member.avatarUrl}',
+      fit: BoxFit.cover,
+      placeholder: (_, __) => _initials(),
+      errorWidget: (_, __, ___) => _initials(),
+    )
+        : _initials();
 
     return Container(
-      width: 52, height: 52,
+      width: 52,
+      height: 52,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: member.isOnline ? AppTheme.primary : Colors.grey.shade700, width: 2,
+          color: member.isOnline
+              ? AppTheme.primary
+              : Colors.grey.shade700,
+          width: 2,
         ),
       ),
       child: ClipOval(
-        child: member.isOnline ? img :
-          ColorFiltered(
-            colorFilter: const ColorFilter.matrix([
-              0.33, 0.33, 0.33, 0, 0,
-              0.33, 0.33, 0.33, 0, 0,
-              0.33, 0.33, 0.33, 0, 0,
-              0,    0,    0,    1, 0,
-            ]),
-            child: img,
-          ),
+        child: member.isOnline
+            ? img
+            : ColorFiltered(
+          colorFilter: const ColorFilter.matrix([
+            0.33, 0.33, 0.33, 0, 0,
+            0.33, 0.33, 0.33, 0, 0,
+            0.33, 0.33, 0.33, 0, 0,
+            0,    0,    0,    1, 0,
+          ]),
+          child: img,
+        ),
       ),
     );
   }
@@ -121,8 +148,13 @@ class _Avatar extends StatelessWidget {
     color: AppTheme.primary.withOpacity(0.25),
     alignment: Alignment.center,
     child: Text(
-      member.username.isNotEmpty ? member.username[0].toUpperCase() : '?',
-      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+      member.username.isNotEmpty
+          ? member.username[0].toUpperCase()
+          : '?',
+      style: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w700),
     ),
   );
 }
@@ -133,32 +165,35 @@ class _BatteryBadge extends StatelessWidget {
   const _BatteryBadge({required this.level});
 
   Color get _color {
-    if (level < AppConstants.batteryLow)    return AppTheme.batteryLow;
+    if (level < AppConstants.batteryLow) return AppTheme.batteryLow;
     if (level < AppConstants.batteryMedium) return AppTheme.batteryMed;
     return AppTheme.batteryHigh;
   }
 
   IconData get _icon {
-    if (level < AppConstants.batteryLow)    return Icons.battery_alert_rounded;
+    if (level < AppConstants.batteryLow) return Icons.battery_alert_rounded;
     if (level < AppConstants.batteryMedium) return Icons.battery_3_bar_rounded;
     return Icons.battery_full_rounded;
   }
 
   @override
-  Widget build(BuildContext context) => Center(
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.cardDark, width: 1.5),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(_icon, size: 10, color: _color),
-        const Gap(2),
-        Text('$level%', style: TextStyle(fontSize: 9, color: _color, fontWeight: FontWeight.w600)),
-      ]),
+  Widget build(BuildContext context) => Container(
+    padding:
+    const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+    decoration: BoxDecoration(
+      color: AppTheme.surfaceDark,
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: AppTheme.cardDark, width: 1.5),
     ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(_icon, size: 10, color: _color),
+      const Gap(2),
+      Text('$level%',
+          style: TextStyle(
+              fontSize: 9,
+              color: _color,
+              fontWeight: FontWeight.w600)),
+    ]),
   );
 }
 
@@ -170,37 +205,51 @@ class _LocationText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!member.isOnline && member.lastSeen != null) {
-      return Text('offline da ${_elapsed(member.lastSeen!)}',
-        style: const TextStyle(color: Colors.grey, fontSize: 12));
+      return Text(
+        'offline da ${_elapsed(member.lastSeen!)}',
+        style: const TextStyle(color: Colors.grey, fontSize: 12),
+        overflow: TextOverflow.ellipsis,
+      );
     }
-    final since = member.locationUpdatedAt != null ? ' da ${_timeStr(member.locationUpdatedAt!)}' : '';
-    return Text('${_activityLabel()}$since',
+    final since = member.locationUpdatedAt != null
+        ? ' · ${_timeStr(member.locationUpdatedAt!)}'
+        : '';
+    return Text(
+      '${_activityLabel()}$since',
       style: const TextStyle(color: Colors.white54, fontSize: 12),
-      maxLines: 1, overflow: TextOverflow.ellipsis);
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
   }
 
   String _activityLabel() {
     switch (member.activityStatus) {
-      case 'driving': return '🚗 In macchina · ${(member.speed * 3.6).round()} km/h';
-      case 'walking': return '🚶 Camminando';
-      case 'still':   return '📍 Fermo';
-      default:        return '📍 Posizione sconosciuta';
+      case 'driving':
+        return '🚗 In macchina · ${(member.speed * 3.6).round()} km/h';
+      case 'walking':
+        return '🚶 Camminando';
+      case 'still':
+        return '📍 Fermo';
+      default:
+        return '📍 Posizione aggiornata';
     }
   }
 
   String _timeStr(DateTime dt) {
-    final now = DateTime.now();
-    final d = dt;
+    final now   = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final dDay  = DateTime(d.year, d.month, d.day);
-    final timeStr = '${d.hour.toString().padLeft(2,'0')}:${d.minute.toString().padLeft(2,'0')}';
-    if (dDay == today) return timeStr;
-    return '$timeStr del ${d.day}/${d.month}/${d.year}';
+    final dDay  = DateTime(dt.year, dt.month, dt.day);
+    final t =
+        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    if (dDay == today) return t;
+    return '$t del ${dt.day}/${dt.month}/${dt.year}';
   }
 
   String _elapsed(DateTime dt) {
     final diff = DateTime.now().difference(dt);
-    if (diff.inDays > 0)  return '${diff.inDays}g ${diff.inHours % 24}h ${diff.inMinutes % 60}min';
+    if (diff.inDays > 0) {
+      return '${diff.inDays}g ${diff.inHours % 24}h ${diff.inMinutes % 60}min';
+    }
     if (diff.inHours > 0) return '${diff.inHours}h ${diff.inMinutes % 60}min';
     return '${diff.inMinutes}min';
   }
@@ -210,16 +259,28 @@ class _LocationText extends StatelessWidget {
 class _ActivityIcon extends StatelessWidget {
   final String activity;
   final bool isOnline;
-  const _ActivityIcon({required this.activity, required this.isOnline});
+  const _ActivityIcon(
+      {required this.activity, required this.isOnline});
 
   @override
   Widget build(BuildContext context) {
-    if (!isOnline) return const Icon(Icons.cloud_off_rounded, color: Colors.grey, size: 22);
+    if (!isOnline) {
+      return const Icon(Icons.cloud_off_rounded,
+          color: Colors.grey, size: 22);
+    }
     switch (activity) {
-      case 'driving': return const Icon(Icons.directions_car_filled_rounded, color: AppTheme.accent, size: 22);
-      case 'walking': return const Icon(Icons.directions_walk_rounded, color: AppTheme.success, size: 22);
-      case 'still':   return const Icon(Icons.home_rounded, color: AppTheme.warning, size: 22);
-      default:        return const Icon(Icons.location_on_rounded, color: Colors.white38, size: 22);
+      case 'driving':
+        return const Icon(Icons.directions_car_filled_rounded,
+            color: AppTheme.accent, size: 22);
+      case 'walking':
+        return const Icon(Icons.directions_walk_rounded,
+            color: AppTheme.success, size: 22);
+      case 'still':
+        return const Icon(Icons.home_rounded,
+            color: AppTheme.warning, size: 22);
+      default:
+        return const Icon(Icons.location_on_rounded,
+            color: Colors.white38, size: 22);
     }
   }
 }

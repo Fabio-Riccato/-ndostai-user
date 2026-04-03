@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sensors_plus/sensors_plus.dart';
@@ -15,11 +16,14 @@ class LocationService {
 
   StreamSubscription<Position>? _positionSub;
   StreamSubscription<AccelerometerEvent>? _accelSub;
+  Timer? _batteryTimer;
+  Timer? _stillTimer; // timer per rilevare quando l'utente si ferma
 
   ActivityType _currentActivity = ActivityType.unknown;
   Position?    _lastSentPosition;
   DateTime?    _lastSentTime;
-  double       _accelMagnitude = 0;
+  DateTime?    _lastMovedTime;   // ultima volta che il GPS registrava movimento
+  double       _accelMagnitude = 9.8; // 1g di default (fermo)
 
   final _activityController = StreamController<ActivityType>.broadcast();
   Stream<ActivityType> get activityStream => _activityController.stream;
@@ -29,33 +33,55 @@ class LocationService {
   Stream<Position> get positionStream => _positionController.stream;
 
   bool _running = false;
-  int _batteryLevel = 100;
+  int  _batteryLevel = 100;
+  final _battery = Battery();
 
-  /// Call once on app start after permissions granted
+  /// Avvia tutti i servizi di rilevamento posizione e batteria
   Future<void> start() async {
     if (_running) return;
     _running = true;
 
-    // Accelerometer for activity detection
+    // Leggi subito la batteria
+    await _updateBattery();
+    // Aggiorna la batteria ogni 60 secondi
+    _batteryTimer = Timer.periodic(const Duration(seconds: 60), (_) => _updateBattery());
+
+    // Accelerometro per attività detection più precisa
     _accelSub = accelerometerEventStream(
-      samplingPeriod: const Duration(milliseconds: 500),
+      samplingPeriod: const Duration(milliseconds: 300),
     ).listen(_onAccel);
 
-    // Continuous GPS stream (we throttle sending ourselves)
-    const settings = LocationSettings(
+    // Stream GPS — su Android usa AndroidSettings per background location
+    final locationSettings = AndroidSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 5, // receive every 5 m minimum
+      distanceFilter: 3,                     // ricevi ogni 3 m (più reattivo)
+      intervalDuration: const Duration(seconds: 3),
+      foregroundNotificationConfig: const ForegroundNotificationConfig(
+        notificationText: 'FamilyTrack sta rilevando la tua posizione',
+        notificationTitle: 'Posizione attiva',
+        enableWakeLock: true,
+      ),
     );
-    _positionSub = Geolocator.getPositionStream(locationSettings: settings)
-        .listen(_onPosition);
+
+    _positionSub = Geolocator.getPositionStream(locationSettings: locationSettings)
+        .listen(_onPosition, onError: (e) => debugPrint('[GPS] Error: $e'));
   }
 
-  void setBatteryLevel(int level) => _batteryLevel = level;
+  Future<void> _updateBattery() async {
+    try {
+      _batteryLevel = await _battery.batteryLevel;
+      debugPrint('[Battery] Level: $_batteryLevel%');
+    } catch (e) {
+      debugPrint('[Battery] Read error: $e');
+    }
+  }
 
   void stop() {
     _running = false;
     _positionSub?.cancel();
     _accelSub?.cancel();
+    _batteryTimer?.cancel();
+    _stillTimer?.cancel();
   }
 
   void dispose() {
@@ -64,23 +90,46 @@ class LocationService {
     _positionController.close();
   }
 
-  // ---------------------------------------------------------------
+  // ── Accelerometro ──────────────────────────────────────────
   void _onAccel(AccelerometerEvent e) {
+    // Magnitudine vettore accelerazione (include gravità ~9.8)
     _accelMagnitude = sqrt(e.x * e.x + e.y * e.y + e.z * e.z);
   }
 
+  // ── GPS position update ─────────────────────────────────────
   void _onPosition(Position pos) {
     _positionController.add(pos);
 
     final speedMs = pos.speed < 0 ? 0.0 : pos.speed;
+
+    // Classifica l'attività in base a velocità GPS + accelerometro
     final newActivity = _classifyActivity(speedMs);
+
+    // Aggiorna il timer dell'ultimo movimento
+    if (speedMs > AppConstants.walkingSpeedThresholdMs) {
+      _lastMovedTime = DateTime.now();
+      _stillTimer?.cancel();
+    } else if (_lastMovedTime != null) {
+      // Se fermo da più di 2 minuti → forza "still" e invia aggiornamento
+      _stillTimer?.cancel();
+      _stillTimer = Timer(const Duration(minutes: 2), () {
+        if (_currentActivity != ActivityType.still) {
+          _currentActivity = ActivityType.still;
+          _activityController.add(ActivityType.still);
+          // Forza invio immediato per aggiornare lo stato sul server
+          if (_lastSentPosition != null) {
+            _sendUpdate(_lastSentPosition!, 0, ActivityType.still);
+          }
+        }
+      });
+    }
 
     if (newActivity != _currentActivity) {
       _currentActivity = newActivity;
       _activityController.add(newActivity);
     }
 
-    if (_shouldSend(pos)) {
+    if (_shouldSend(pos, speedMs)) {
       _lastSentPosition = pos;
       _lastSentTime     = DateTime.now();
       _sendUpdate(pos, speedMs, newActivity);
@@ -88,18 +137,18 @@ class LocationService {
   }
 
   ActivityType _classifyActivity(double speedMs) {
-    // Primarily GPS speed, secondarily accelerometer
     if (speedMs >= AppConstants.drivingSpeedThresholdMs) return ActivityType.driving;
     if (speedMs >= AppConstants.walkingSpeedThresholdMs) return ActivityType.walking;
-    // Low speed but high accel = walking
-    if (_accelMagnitude > AppConstants.drivingAccelThreshold) return ActivityType.walking;
+    // Accelerometro: differenza dalla gravità (9.8) > soglia → movimento
+    final accelDelta = (_accelMagnitude - 9.8).abs();
+    if (accelDelta > 1.5) return ActivityType.walking;
     return ActivityType.still;
   }
 
-  bool _shouldSend(Position pos) {
-    final now = DateTime.now();
-    final intervalMs = _intervalForActivity(_currentActivity);
-    final minDistM   = _distanceForActivity(_currentActivity);
+  bool _shouldSend(Position pos, double speedMs) {
+    final now         = DateTime.now();
+    final intervalMs  = _intervalForActivity(_currentActivity);
+    final minDistM    = _distanceForActivity(_currentActivity);
 
     final timeOk = _lastSentTime == null ||
         now.difference(_lastSentTime!).inMilliseconds >= intervalMs;
@@ -110,7 +159,12 @@ class LocationService {
           pos.latitude, pos.longitude,
         ) >= minDistM;
 
-    return timeOk && distOk;
+    // In guida: invia sempre se la velocità è cambiata di più di 5 km/h
+    final speedChanged = _currentActivity == ActivityType.driving &&
+        _lastSentPosition != null &&
+        (speedMs - (_lastSentPosition!.speed < 0 ? 0 : _lastSentPosition!.speed)).abs() > 1.4;
+
+    return (timeOk && distOk) || speedChanged;
   }
 
   int _intervalForActivity(ActivityType a) {
@@ -139,11 +193,11 @@ class LocationService {
         'heading':        pos.heading,
         'altitude':       pos.altitude,
         'activityStatus': _activityName(activity),
-        'batteryLevel':   _batteryLevel,
+        'batteryLevel':   _batteryLevel,   // ora reale, non sempre 100
         'isAirplaneMode': false,
       });
     } catch (e) {
-      debugPrint('Location send error: $e');
+      debugPrint('[Location] Send error: $e');
     }
   }
 
@@ -156,12 +210,32 @@ class LocationService {
     }
   }
 
+  /// Richiede ALWAYS permission (necessario per background tracking)
   static Future<bool> requestPermissions() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      debugPrint('[GPS] Location services disabled');
+      return false;
+    }
+
     LocationPermission perm = await Geolocator.checkPermission();
+
     if (perm == LocationPermission.denied) {
       perm = await Geolocator.requestPermission();
     }
-    if (perm == LocationPermission.deniedForever) return false;
+
+    if (perm == LocationPermission.deniedForever) {
+      debugPrint('[GPS] Permission denied forever');
+      return false;
+    }
+
+    // Se abbiamo solo whileInUse, chiedi "always"
+    if (perm == LocationPermission.whileInUse) {
+      debugPrint('[GPS] Requesting always permission...');
+      perm = await Geolocator.requestPermission();
+    }
+
+    debugPrint('[GPS] Permission: $perm');
     return perm == LocationPermission.always || perm == LocationPermission.whileInUse;
   }
 }
