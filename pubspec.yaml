@@ -1,0 +1,86 @@
+name: family_track
+description: Family location sharing app – FamilyTrack
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Navigation
+  go_router: ^14.1.4
+
+  # Networking
+  dio: ^5.4.3
+  web_socket_channel: ^3.0.1
+
+  # Maps
+  flutter_map: ^7.0.2
+  latlong2: ^0.9.1
+  flutter_map_tile_caching: ^9.1.4
+
+  # Location & sensors
+  geolocator: ^12.0.0
+  sensors_plus: ^5.0.1
+  permission_handler: ^11.3.1
+
+  # Storage
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.3.1
+
+  # UI
+  gap: ^3.0.1
+  cached_network_image: ^3.3.1
+  shimmer: ^3.0.0
+  flutter_svg: ^2.0.10+1
+  lottie: ^3.1.2
+  animate_do: ^3.3.4
+
+  # Push notifications
+  firebase_core: ^3.3.0
+  firebase_messaging: ^15.1.0
+
+  # Utilities
+  intl: ^0.19.0
+  timeago: ^3.6.1
+  uuid: ^4.4.2
+  image_picker: ^1.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  build_runner: ^2.4.11
+  flutter_launcher_icons: ^0.13.1
+  riverpod_generator: ^2.4.3
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/ndostai.png" # Questa verrà usata per iOS e versioni vecchie di Android
+
+  adaptive_icon_background: "#3282B8" # Usa un colore che richiama lo sfondo dell'immagine (es. il blu del logo)
+  adaptive_icon_foreground: "assets/images/ndostai.png" #
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/animations/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
