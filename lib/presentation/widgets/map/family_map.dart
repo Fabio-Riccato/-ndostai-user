@@ -25,7 +25,7 @@ class _FamilyMapState extends ConsumerState<FamilyMap> {
   // Altezza totale = badge(22) + gap(2) + cerchio(52) + punta(10) = 86
   // La punta è all'altezza 86 dal top → anchor y = 86/2 = 43 dal centro = bottom
   static const double _markerW = 60.0;
-  static const double _markerH = 86.0;
+  static const double _markerH = 77.0;
   // Offset: x=0 (centrato), y = sposta in su di metà altezza (così la punta tocca il punto)
   // In flutter_map l'alignment va da -1 (top) a +1 (bottom).
   // Vogliamo che il BOTTOM del widget sia sul punto → alignment = Alignment.bottomCenter
@@ -137,17 +137,19 @@ class _FamilyMapState extends ConsumerState<FamilyMap> {
               markers: withPos.map((m) {
                 final isExpanded = _focusedUserId == m.id;
                 final markerW = isExpanded ? 210.0 : _markerW;
-                final markerH = isExpanded ? 220.0 : _markerH;
+                final markerH = isExpanded ? 220.0 : 77.0;
 
                 return Marker(
                   point: LatLng(m.latitude!, m.longitude!),
                   width: markerW,
                   height: markerH,
-                  // Alignment(0, 1): il bottom-center del widget coincide col punto.
-                  // La punta del bubble è esattamente in fondo → posizione corretta
-                  // a QUALSIASI livello di zoom, perché flutter_map applica
-                  // questo offset in coordinate schermo dopo la proiezione.
-                  alignment: const Alignment(0, 1),
+                  // Cerchio senza punta → centrare il cerchio sul punto geografico.
+                  // Il badge attività è sopra, quindi il centro del cerchio
+                  // non è al centro del widget. Offset: sposta leggermente in basso
+                  // di circa (badgeH + gap) / markerH in unità Alignment.
+                  // Per il marker normale: badge~22 + gap~3 = 25 su 77 totali.
+                  // Centro cerchio a y=25+26=51 su 77 → offset = (51/77*2-1) = 0.32
+                  alignment: const Alignment(0, 0.32),
                   child: GestureDetector(
                     onTap: () {
                       setState(() {

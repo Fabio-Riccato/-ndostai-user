@@ -1,11 +1,14 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:gap/gap.dart';
 import '../../../data/models/models.dart';
+import '../../../data/repositories/providers.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/avatar_utils.dart';
 
 class MemberCard extends ConsumerWidget {
   final CircleMemberModel member;
@@ -21,6 +24,8 @@ class MemberCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final places = ref.watch(placesProvider).valueOrNull ?? [];
+
     return InkWell(
       onTap: () => context.push('/trips/${member.id}?circleId=$circleId'),
       child: Padding(
@@ -28,7 +33,6 @@ class MemberCard extends ConsumerWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            // Avatar + battery sotto
             SizedBox(
               width: 56,
               child: Stack(
@@ -36,29 +40,22 @@ class MemberCard extends ConsumerWidget {
                 alignment: Alignment.center,
                 children: [
                   _Avatar(member: member),
-                  Positioned(
-                    bottom: -6,
-                    child: _BatteryBadge(level: member.batteryLevel),
-                  ),
+                  Positioned(bottom: -6, child: _BatteryBadge(level: member.batteryLevel)),
                 ],
               ),
             ),
             const Gap(14),
-
-            // Testo centrale — Expanded evita overflow
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Nome + badge admin in un Row con Flexible
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Flexible(
                         child: Text(
                           isSelf ? '${member.username} (tu)' : member.username,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, fontSize: 15),
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                           overflow: TextOverflow.ellipsis,
                           maxLines: 1,
                         ),
@@ -66,31 +63,24 @@ class MemberCard extends ConsumerWidget {
                       if (member.isAdmin) ...[
                         const Gap(6),
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: AppTheme.warning.withOpacity(0.2),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: const Text('admin',
-                              style: TextStyle(
-                                  color: AppTheme.warning,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600)),
+                              style: TextStyle(color: AppTheme.warning, fontSize: 10, fontWeight: FontWeight.w600)),
                         ),
                       ],
                     ],
                   ),
                   const Gap(3),
-                  _LocationText(member: member),
+                  _LocationText(member: member, places: places),
                 ],
               ),
             ),
-
             const Gap(8),
-            // Icona attività a destra
-            _ActivityIcon(
-                activity: member.activityStatus, isOnline: member.isOnline),
+            _ActivityIcon(activity: member.activityStatus, isOnline: member.isOnline),
           ],
         ),
       ),
@@ -105,26 +95,21 @@ class _Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final Widget img = member.avatarUrl != null
+    final url = resolveAvatarUrl(member.avatarUrl);
+    final Widget img = url != null
         ? CachedNetworkImage(
-      imageUrl: member.avatarUrl!.startsWith('http')
-          ? member.avatarUrl!
-          : '${AppConstants.baseUrl}${member.avatarUrl}',
-      fit: BoxFit.cover,
+      imageUrl: url, fit: BoxFit.cover,
       placeholder: (_, __) => _initials(),
       errorWidget: (_, __, ___) => _initials(),
     )
         : _initials();
 
     return Container(
-      width: 52,
-      height: 52,
+      width: 52, height: 52,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(
-          color: member.isOnline
-              ? AppTheme.primary
-              : Colors.grey.shade700,
+          color: member.isOnline ? AppTheme.primary : Colors.grey.shade700,
           width: 2,
         ),
       ),
@@ -148,13 +133,8 @@ class _Avatar extends StatelessWidget {
     color: AppTheme.primary.withOpacity(0.25),
     alignment: Alignment.center,
     child: Text(
-      member.username.isNotEmpty
-          ? member.username[0].toUpperCase()
-          : '?',
-      style: const TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.w700),
+      member.username.isNotEmpty ? member.username[0].toUpperCase() : '?',
+      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
     ),
   );
 }
@@ -178,8 +158,7 @@ class _BatteryBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding:
-    const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
     decoration: BoxDecoration(
       color: AppTheme.surfaceDark,
       borderRadius: BorderRadius.circular(8),
@@ -189,10 +168,7 @@ class _BatteryBadge extends StatelessWidget {
       Icon(_icon, size: 10, color: _color),
       const Gap(2),
       Text('$level%',
-          style: TextStyle(
-              fontSize: 9,
-              color: _color,
-              fontWeight: FontWeight.w600)),
+          style: TextStyle(fontSize: 9, color: _color, fontWeight: FontWeight.w600)),
     ]),
   );
 }
@@ -200,7 +176,8 @@ class _BatteryBadge extends StatelessWidget {
 // ── Location text ───────────────────────────────────────────
 class _LocationText extends StatelessWidget {
   final CircleMemberModel member;
-  const _LocationText({required this.member});
+  final List<PlaceModel> places;
+  const _LocationText({required this.member, required this.places});
 
   @override
   Widget build(BuildContext context) {
@@ -211,47 +188,90 @@ class _LocationText extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
       );
     }
-    final since = member.locationUpdatedAt != null
-        ? ' · ${_timeStr(member.locationUpdatedAt!)}'
-        : '';
+
     return Text(
-      '${_activityLabel()}$since',
+      _buildLabel(),
       style: const TextStyle(color: Colors.white54, fontSize: 12),
-      maxLines: 1,
+      maxLines: 2,
       overflow: TextOverflow.ellipsis,
     );
   }
 
-  String _activityLabel() {
+  String _buildLabel() {
+    final nearbyPlace = _findNearbyPlace();
+
     switch (member.activityStatus) {
-      case 'driving':
-        return '🚗 In macchina · ${(member.speed * 3.6).round()} km/h';
-      case 'walking':
-        return '🚶 Camminando';
+
+    // ── FERMO ──────────────────────────────────────────────
       case 'still':
-        return '📍 Fermo';
+      // Usa stoppedAt (quando si è fermato davvero) oppure locationUpdatedAt
+        final sinceTs = member.stoppedAt ?? member.locationUpdatedAt;
+        if (nearbyPlace != null) {
+          return 'Presso ${nearbyPlace.name}${_sinceStr(sinceTs)}';
+        }
+        return 'Fermo${_sinceStr(sinceTs)}';
+
+    // ── CAMMINANDO ─────────────────────────────────────────
+      case 'walking':
+        if (nearbyPlace != null) {
+          return 'A piedi vicino a ${nearbyPlace.name}${_sinceStr(member.locationUpdatedAt)}';
+        }
+        return 'Camminando${_sinceStr(member.locationUpdatedAt)}';
+
+    // ── IN MACCHINA ────────────────────────────────────────
+      case 'driving':
+        final kmh = (member.speed * 3.6).round();
+        return 'In macchina · $kmh km/h${_sinceStr(member.locationUpdatedAt)}';
+
+    // ── DEFAULT ────────────────────────────────────────────
       default:
-        return '📍 Posizione aggiornata';
+        if (member.locationUpdatedAt != null) {
+          return 'Aggiornato alle ${_timeOnly(member.locationUpdatedAt!)}';
+        }
+        return 'Posizione sconosciuta';
     }
   }
 
-  String _timeStr(DateTime dt) {
+  PlaceModel? _findNearbyPlace() {
+    if (member.latitude == null || member.longitude == null) return null;
+    for (final p in places) {
+      if (_distM(member.latitude!, member.longitude!, p.latitude, p.longitude) <= p.radiusM) {
+        return p;
+      }
+    }
+    return null;
+  }
+
+  /// "dalle HH:MM" o "dalle HH:MM del GG/MM/AAAA" se non è oggi
+  String _sinceStr(DateTime? dt) {
+    if (dt == null) return '';
     final now   = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final dDay  = DateTime(dt.year, dt.month, dt.day);
-    final t =
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    if (dDay == today) return t;
-    return '$t del ${dt.day}/${dt.month}/${dt.year}';
+    final t     = _timeOnly(dt);
+    if (dDay == today) return ' dalle $t';
+    return ' dalle $t del ${dt.day}/${dt.month}/${dt.year}';
   }
 
+  String _timeOnly(DateTime dt) =>
+      '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+
   String _elapsed(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inDays > 0) {
-      return '${diff.inDays}g ${diff.inHours % 24}h ${diff.inMinutes % 60}min';
-    }
-    if (diff.inHours > 0) return '${diff.inHours}h ${diff.inMinutes % 60}min';
-    return '${diff.inMinutes}min';
+    final d = DateTime.now().difference(dt);
+    if (d.inDays > 0)  return '${d.inDays}g ${d.inHours % 24}h ${d.inMinutes % 60}min';
+    if (d.inHours > 0) return '${d.inHours}h ${d.inMinutes % 60}min';
+    return '${d.inMinutes}min';
+  }
+
+  static double _distM(double lat1, double lon1, double lat2, double lon2) {
+    const R = 6371000.0;
+    final phi1   = lat1 * math.pi / 180;
+    final phi2   = lat2 * math.pi / 180;
+    final dPhi   = (lat2 - lat1) * math.pi / 180;
+    final dLamba = (lon2 - lon1) * math.pi / 180;
+    final a      = math.pow(math.sin(dPhi / 2), 2) +
+        math.cos(phi1) * math.cos(phi2) * math.pow(math.sin(dLamba / 2), 2);
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
   }
 }
 
@@ -259,28 +279,16 @@ class _LocationText extends StatelessWidget {
 class _ActivityIcon extends StatelessWidget {
   final String activity;
   final bool isOnline;
-  const _ActivityIcon(
-      {required this.activity, required this.isOnline});
+  const _ActivityIcon({required this.activity, required this.isOnline});
 
   @override
   Widget build(BuildContext context) {
-    if (!isOnline) {
-      return const Icon(Icons.cloud_off_rounded,
-          color: Colors.grey, size: 22);
-    }
+    if (!isOnline) return const Icon(Icons.cloud_off_rounded, color: Colors.grey, size: 22);
     switch (activity) {
-      case 'driving':
-        return const Icon(Icons.directions_car_filled_rounded,
-            color: AppTheme.accent, size: 22);
-      case 'walking':
-        return const Icon(Icons.directions_walk_rounded,
-            color: AppTheme.success, size: 22);
-      case 'still':
-        return const Icon(Icons.home_rounded,
-            color: AppTheme.warning, size: 22);
-      default:
-        return const Icon(Icons.location_on_rounded,
-            color: Colors.white38, size: 22);
+      case 'driving': return const Icon(Icons.directions_car_filled_rounded, color: AppTheme.accent, size: 22);
+      case 'walking': return const Icon(Icons.directions_walk_rounded, color: AppTheme.success, size: 22);
+      case 'still':   return const Icon(Icons.home_rounded, color: AppTheme.warning, size: 22);
+      default:        return const Icon(Icons.location_on_rounded, color: Colors.white38, size: 22);
     }
   }
 }

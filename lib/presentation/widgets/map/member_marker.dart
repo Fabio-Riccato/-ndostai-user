@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:gap/gap.dart';
 import '../../../data/models/models.dart';
-import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/utils/avatar_utils.dart';
 
-// ── Marker principale utente (stile Life360: cerchio + punta) ──
+// ─────────────────────────────────────────────────────────────
+// Marker utente sulla mappa — cerchio semplice (senza punta)
+// ─────────────────────────────────────────────────────────────
 class MemberMarker extends StatelessWidget {
   final CircleMemberModel member;
   final bool isSelf;
@@ -21,7 +23,7 @@ class MemberMarker extends StatelessWidget {
     required this.places,
   });
 
-  Color get _borderColor {
+  Color get _ringColor {
     if (!member.isOnline) return Colors.grey.shade500;
     if (isSelf) return AppTheme.accent;
     return AppTheme.primary;
@@ -29,20 +31,19 @@ class MemberMarker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Controlla se l'utente si trova presso un luogo salvato
     final nearbyPlace = _findNearbyPlace();
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // ── Etichetta info (visibile solo quando expanded) ──────
-        if (expanded)
+        // Info bubble (solo quando tappato)
+        if (expanded) ...[
           _InfoBubble(member: member, nearbyPlace: nearbyPlace),
+          const Gap(4),
+        ],
 
-        if (expanded) const Gap(4),
-
-        // ── Badge attività sopra il marker ─────────────────────
+        // Badge attività sopra il cerchio
         _ActivityBadge(
           activity: member.activityStatus,
           isAirplane: member.isAirplaneMode,
@@ -50,35 +51,35 @@ class MemberMarker extends StatelessWidget {
               ? (member.speed * 3.6).round()
               : null,
         ),
-        const Gap(2),
+        const Gap(3),
 
-        // ── Corpo del marker: cerchio + punta triangolare ───────
-        CustomPaint(
-          painter: _BubblePainter(
-            borderColor: _borderColor,
-            fillColor: member.isOnline
-                ? AppTheme.cardDark
-                : const Color(0xFF444444),
-            shadowColor: _borderColor.withOpacity(0.5),
-          ),
-          child: SizedBox(
-            width: 52,
-            height: 60, // 52 cerchio + 8 punta
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 8), // lascia spazio alla punta
-              child: ClipOval(
-                child: ColorFiltered(
-                  colorFilter: member.isOnline
-                      ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
-                      : const ColorFilter.matrix([
-                    0.33, 0.33, 0.33, 0, 0,
-                    0.33, 0.33, 0.33, 0, 0,
-                    0.33, 0.33, 0.33, 0, 0,
-                    0, 0, 0, 1, 0,
-                  ]),
-                  child: _avatarChild(),
-                ),
+        // Cerchio avatar — nessuna punta
+        Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppTheme.cardDark,
+            border: Border.all(color: _ringColor, width: 3),
+            boxShadow: [
+              BoxShadow(
+                color: _ringColor.withOpacity(0.45),
+                blurRadius: 10,
+                spreadRadius: 1,
               ),
+            ],
+          ),
+          child: ClipOval(
+            child: ColorFiltered(
+              colorFilter: member.isOnline
+                  ? const ColorFilter.mode(Colors.transparent, BlendMode.multiply)
+                  : const ColorFilter.matrix([
+                0.33, 0.33, 0.33, 0, 0,
+                0.33, 0.33, 0.33, 0, 0,
+                0.33, 0.33, 0.33, 0, 0,
+                0,    0,    0,    1, 0,
+              ]),
+              child: _avatarChild(),
             ),
           ),
         ),
@@ -89,20 +90,14 @@ class MemberMarker extends StatelessWidget {
   PlaceModel? _findNearbyPlace() {
     if (member.latitude == null || member.longitude == null) return null;
     for (final p in places) {
-      final dist = _haversineM(
-          member.latitude!, member.longitude!, p.latitude, p.longitude);
-      if (dist <= p.radiusM) return p;
+      final d = _haversineM(member.latitude!, member.longitude!, p.latitude, p.longitude);
+      if (d <= p.radiusM) return p;
     }
     return null;
   }
 
   Widget _avatarChild() {
-    final url = member.avatarUrl != null && member.avatarUrl!.isNotEmpty
-        ? (member.avatarUrl!.startsWith('http')
-        ? member.avatarUrl!
-        : '${AppConstants.baseUrl}${member.avatarUrl}')
-        : null;
-
+    final url = resolveAvatarUrl(member.avatarUrl);
     if (url != null) {
       return CachedNetworkImage(
         imageUrl: url,
@@ -115,15 +110,14 @@ class MemberMarker extends StatelessWidget {
   }
 
   Widget _initials() => Container(
-    color: _borderColor.withOpacity(0.25),
+    color: _ringColor.withOpacity(0.2),
     alignment: Alignment.center,
     child: Text(
       member.username.isNotEmpty ? member.username[0].toUpperCase() : '?',
-      style: TextStyle(
+      style: const TextStyle(
         color: Colors.white,
         fontSize: 20,
         fontWeight: FontWeight.w800,
-        shadows: [Shadow(color: Colors.black.withOpacity(0.3), blurRadius: 4)],
       ),
     ),
   );
@@ -140,82 +134,14 @@ class MemberMarker extends StatelessWidget {
   }
 }
 
-// ── Painter: cerchio con bordo colorato + punta in basso ────
-class _BubblePainter extends CustomPainter {
-  final Color borderColor;
-  final Color fillColor;
-  final Color shadowColor;
-
-  const _BubblePainter({
-    required this.borderColor,
-    required this.fillColor,
-    required this.shadowColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final r = (size.width / 2) - 2; // raggio cerchio
-    final center = Offset(size.width / 2, r + 2);
-    const tipH = 10.0; // altezza punta
-
-    // Shadow
-    final shadowPaint = Paint()
-      ..color = shadowColor
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6);
-    canvas.drawCircle(center, r + 1, shadowPaint);
-
-    // Fill cerchio
-    final fillPaint = Paint()..color = fillColor;
-    canvas.drawCircle(center, r, fillPaint);
-
-    // Bordo cerchio
-    final borderPaint = Paint()
-      ..color = borderColor
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
-    canvas.drawCircle(center, r, borderPaint);
-
-    // Punta triangolare in basso al centro
-    final tipPath = Path();
-    final tipX = size.width / 2;
-    final tipY = center.dy + r + tipH;
-    tipPath.moveTo(tipX - 7, center.dy + r - 2);
-    tipPath.lineTo(tipX, tipY);
-    tipPath.lineTo(tipX + 7, center.dy + r - 2);
-    tipPath.close();
-
-    canvas.drawPath(tipPath, fillPaint);
-    // Bordo punta
-    final tipBorder = Paint()
-      ..color = borderColor
-      ..strokeWidth = 2.5
-      ..style = PaintingStyle.stroke
-      ..strokeJoin = StrokeJoin.round;
-    // Solo i lati della punta (non la base)
-    final borderTip = Path();
-    borderTip.moveTo(tipX - 7, center.dy + r - 2);
-    borderTip.lineTo(tipX, tipY);
-    borderTip.lineTo(tipX + 7, center.dy + r - 2);
-    canvas.drawPath(borderTip, tipBorder);
-  }
-
-  @override
-  bool shouldRepaint(_BubblePainter old) =>
-      old.borderColor != borderColor ||
-          old.fillColor != fillColor;
-}
-
-// ── Badge attività (icona sopra il marker) ──────────────────
+// ─────────────────────────────────────────────────────────────
+// Badge attività (icona sopra il cerchio)
+// ─────────────────────────────────────────────────────────────
 class _ActivityBadge extends StatelessWidget {
   final String activity;
   final bool isAirplane;
   final int? speedKmh;
-
-  const _ActivityBadge({
-    required this.activity,
-    required this.isAirplane,
-    this.speedKmh,
-  });
+  const _ActivityBadge({required this.activity, required this.isAirplane, this.speedKmh});
 
   @override
   Widget build(BuildContext context) {
@@ -233,110 +159,88 @@ class _ActivityBadge extends StatelessWidget {
     }
   }
 
-  Widget _pill(IconData icon, Color color, String? label) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-          horizontal: label != null ? 8 : 6, vertical: 4),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: color.withOpacity(0.5), blurRadius: 6)],
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, size: 13, color: Colors.white),
-        if (label != null) ...[
-          const Gap(4),
-          Text(label,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700)),
-        ]
-      ]),
-    );
-  }
+  Widget _pill(IconData icon, Color color, String? label) => Container(
+    padding: EdgeInsets.symmetric(horizontal: label != null ? 8 : 6, vertical: 4),
+    decoration: BoxDecoration(
+      color: color,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [BoxShadow(color: color.withOpacity(0.5), blurRadius: 6)],
+    ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 13, color: Colors.white),
+      if (label != null) ...[
+        const Gap(4),
+        Text(label, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
+      ],
+    ]),
+  );
 }
 
-// ── Bubble informazioni (solo quando tappato = expanded) ────
+// ─────────────────────────────────────────────────────────────
+// Info bubble (visibile quando si tocca il marker)
+// ─────────────────────────────────────────────────────────────
 class _InfoBubble extends StatelessWidget {
   final CircleMemberModel member;
   final PlaceModel? nearbyPlace;
-
   const _InfoBubble({required this.member, this.nearbyPlace});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(maxWidth: 180),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: AppTheme.cardDark.withOpacity(0.97),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primary.withOpacity(0.4)),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.4),
-              blurRadius: 10,
-              offset: const Offset(0, 2)),
-        ],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            member.username,
-            style: const TextStyle(
-                fontWeight: FontWeight.w700, fontSize: 13, color: Colors.white),
-          ),
-          const Gap(4),
-          _statusLine(),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => Container(
+    constraints: const BoxConstraints(maxWidth: 190),
+    padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+    decoration: BoxDecoration(
+      color: AppTheme.cardDark.withOpacity(0.97),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: AppTheme.primary.withOpacity(0.4)),
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.35), blurRadius: 10, offset: const Offset(0, 2))],
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(member.username,
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.white)),
+        const Gap(4),
+        _statusLine(),
+      ],
+    ),
+  );
 
   Widget _statusLine() {
-    // Offline
     if (!member.isOnline) {
       final ago = member.lastSeen != null ? _elapsed(member.lastSeen!) : '?';
       return _row(Icons.cloud_off_rounded, Colors.grey, 'offline da $ago');
     }
 
-    // Se nei pressi di un luogo → "Presso <nome> da <ora>"
-    if (nearbyPlace != null && member.locationUpdatedAt != null) {
-      final since = _timeStr(member.locationUpdatedAt!);
-      final label = nearbyPlace!.isHome
-          ? (member.activityStatus == 'walking'
-          ? 'A piedi vicino a ${nearbyPlace!.name} da $since'
-          : 'Presso ${nearbyPlace!.name} da $since')
-          : 'Presso "${nearbyPlace!.name}" da $since';
+    // Fermo presso un luogo
+    if (member.activityStatus == 'still' && nearbyPlace != null) {
+      final since = _sinceStr(member.stoppedAt ?? member.locationUpdatedAt);
       return _row(
-          nearbyPlace!.isHome ? Icons.home_rounded : Icons.place_rounded,
-          AppTheme.primary,
-          label);
+        nearbyPlace!.isHome ? Icons.home_rounded : Icons.place_rounded,
+        AppTheme.primary,
+        'Presso "${nearbyPlace!.name}"$since',
+      );
+    }
+
+    // A piedi vicino a un luogo
+    if (member.activityStatus == 'walking' && nearbyPlace != null) {
+      final since = _sinceStr(member.locationUpdatedAt);
+      return _row(Icons.directions_walk_rounded, AppTheme.success,
+          'A piedi vicino a "${nearbyPlace!.name}"$since');
     }
 
     switch (member.activityStatus) {
       case 'driving':
         final kmh = (member.speed * 3.6).round();
-        return _row(Icons.directions_car_filled_rounded, AppTheme.accent,
-            'In macchina · $kmh km/h');
+        return _row(Icons.directions_car_filled_rounded, AppTheme.accent, 'In macchina · $kmh km/h');
       case 'walking':
-        final since = member.locationUpdatedAt != null
-            ? ' da ${_timeStr(member.locationUpdatedAt!)}'
-            : '';
-        return _row(Icons.directions_walk_rounded, AppTheme.success,
-            'Camminando$since');
+        final since = _sinceStr(member.locationUpdatedAt);
+        return _row(Icons.directions_walk_rounded, AppTheme.success, 'Camminando$since');
       case 'still':
-        final dur = member.locationUpdatedAt != null
-            ? ' da ${_elapsed(member.locationUpdatedAt!)}'
-            : '';
-        return _row(Icons.pause_circle_outline_rounded, Colors.white54,
-            'Fermo$dur');
+        final since = _sinceStr(member.stoppedAt ?? member.locationUpdatedAt);
+        return _row(Icons.pause_circle_outline_rounded, Colors.white54, 'Fermo$since');
       default:
-        return _row(Icons.location_on_rounded, Colors.white38,
-            'Posizione aggiornata');
+        return _row(Icons.location_on_rounded, Colors.white38, 'Posizione aggiornata');
     }
   }
 
@@ -346,67 +250,56 @@ class _InfoBubble extends StatelessWidget {
     children: [
       Icon(icon, size: 13, color: color),
       const Gap(5),
-      Flexible(
-        child: Text(
-          text,
-          style: TextStyle(color: color, fontSize: 11, height: 1.3),
-          softWrap: true,
-        ),
-      ),
+      Flexible(child: Text(text, style: TextStyle(color: color, fontSize: 11, height: 1.3), softWrap: true)),
     ],
   );
 
-  String _timeStr(DateTime dt) {
-    final now = DateTime.now();
+  /// "dalle HH:MM" oppure "dalle HH:MM del GG/MM/AAAA" se non è oggi
+  String _sinceStr(DateTime? dt) {
+    if (dt == null) return '';
+    final now   = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final dDay = DateTime(dt.year, dt.month, dt.day);
-    final t =
-        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-    if (dDay == today) return t;
-    return '$t del ${dt.day}/${dt.month}';
+    final dDay  = DateTime(dt.year, dt.month, dt.day);
+    final t     = '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    if (dDay == today) return ' dalle $t';
+    return ' dalle $t del ${dt.day}/${dt.month}/${dt.year}';
   }
 
   String _elapsed(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inDays > 0) return '${diff.inDays}g ${diff.inHours % 24}h';
-    if (diff.inHours > 0) return '${diff.inHours}h ${diff.inMinutes % 60}min';
-    if (diff.inMinutes > 0) return '${diff.inMinutes}min';
+    final d = DateTime.now().difference(dt);
+    if (d.inDays > 0) return '${d.inDays}g ${d.inHours % 24}h';
+    if (d.inHours > 0) return '${d.inHours}h ${d.inMinutes % 60}min';
+    if (d.inMinutes > 0) return '${d.inMinutes}min';
     return 'adesso';
   }
 }
 
-// ── Marker per i luoghi (pin stile Google Maps con icona) ───
+// ─────────────────────────────────────────────────────────────
+// Pin luoghi — stile Google Maps (solo usato in family_map)
+// ─────────────────────────────────────────────────────────────
 class PlaceMarker extends StatelessWidget {
   final PlaceModel place;
-
   const PlaceMarker({super.key, required this.place});
 
   @override
   Widget build(BuildContext context) {
     final color = place.isHome ? AppTheme.primary : AppTheme.accent;
-
     return CustomPaint(
       painter: _PinPainter(color: color),
       child: SizedBox(
-        width: 40,
-        height: 50,
+        width: 40, height: 50,
         child: Padding(
-          // centra l'icona nella parte circolare del pin (senza la punta)
           padding: const EdgeInsets.only(bottom: 14, top: 2, left: 2, right: 2),
-          child: Center(
-            child: Icon(
-              place.isHome ? Icons.home_rounded : Icons.place_rounded,
-              color: Colors.white,
-              size: 18,
-            ),
-          ),
+          child: Center(child: Icon(
+            place.isHome ? Icons.home_rounded : Icons.place_rounded,
+            color: Colors.white, size: 18,
+          )),
         ),
       ),
     );
   }
 }
 
-// ── Painter: pin Google Maps style ─────────────────────────
 class _PinPainter extends CustomPainter {
   final Color color;
   const _PinPainter({required this.color});
@@ -414,31 +307,23 @@ class _PinPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = color;
-    final shadowPaint = Paint()
+    final shadow = Paint()
       ..color = color.withOpacity(0.4)
       ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
 
-    // La parte rotonda in cima
-    final circleRadius = size.width / 2;
-    final circleCenter = Offset(size.width / 2, circleRadius);
+    final r = size.width / 2;
+    final center = Offset(size.width / 2, r);
+    canvas.drawCircle(center, r, shadow);
+    canvas.drawCircle(center, r, paint);
 
-    // Shadow
-    canvas.drawCircle(circleCenter, circleRadius, shadowPaint);
-
-    // Cerchio colorato
-    canvas.drawCircle(circleCenter, circleRadius, paint);
-
-    // Punta triangolare in basso
-    final path = Path();
-    path.moveTo(0, circleRadius * 1.3);
-    path.lineTo(size.width / 2, size.height);
-    path.lineTo(size.width, circleRadius * 1.3);
-    path.close();
+    final path = Path()
+      ..moveTo(0, r * 1.3)
+      ..lineTo(size.width / 2, size.height)
+      ..lineTo(size.width, r * 1.3)
+      ..close();
     canvas.drawPath(path, paint);
 
-    // Cerchietto bianco interno
-    final innerPaint = Paint()..color = Colors.white.withOpacity(0.3);
-    canvas.drawCircle(circleCenter, circleRadius * 0.45, innerPaint);
+    canvas.drawCircle(center, r * 0.42, Paint()..color = Colors.white.withOpacity(0.3));
   }
 
   @override

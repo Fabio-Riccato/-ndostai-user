@@ -15,6 +15,7 @@ class UserModel {
   final String activityStatus; // still, walking, driving, flying, unknown
   final bool isAirplaneMode;
   final DateTime? locationUpdatedAt;
+  final DateTime? stoppedAt;
 
   const UserModel({
     required this.id,
@@ -30,6 +31,7 @@ class UserModel {
     this.activityStatus = 'unknown',
     this.isAirplaneMode = false,
     this.locationUpdatedAt,
+    this.stoppedAt,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> j) => UserModel(
@@ -46,6 +48,7 @@ class UserModel {
     activityStatus:   j['activity_status'] as String? ?? 'unknown',
     isAirplaneMode:   j['is_airplane_mode'] as bool? ?? false,
     locationUpdatedAt: j['location_updated_at'] != null ? DateTime.tryParse(j['location_updated_at'] as String) : null,
+    stoppedAt: j['stopped_at'] != null ? DateTime.tryParse(j['stopped_at'] as String) : null,
   );
 
   UserModel copyWith({
