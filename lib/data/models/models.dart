@@ -1,6 +1,3 @@
-// lib/data/models/models.dart
-// Single file containing all data models for simplicity
-
 class UserModel {
   final String id;
   final String username;
@@ -51,20 +48,31 @@ class UserModel {
     stoppedAt: j['stopped_at'] != null ? DateTime.tryParse(j['stopped_at'] as String) : null,
   );
 
+  // BUG FIX: aggiunto avatarUrl a copyWith (era mancante)
   UserModel copyWith({
-    double? latitude, double? longitude, double? speed,
-    String? activityStatus, int? batteryLevel, bool? isOnline,
-    bool? isAirplaneMode, DateTime? locationUpdatedAt, DateTime? lastSeen,
+    String? avatarUrl,
+    double? latitude,
+    double? longitude,
+    double? speed,
+    String? activityStatus,
+    int? batteryLevel,
+    bool? isOnline,
+    bool? isAirplaneMode,
+    DateTime? locationUpdatedAt,
+    DateTime? lastSeen,
   }) => UserModel(
-    id: id, username: username, email: email, avatarUrl: avatarUrl,
-    batteryLevel:     batteryLevel     ?? this.batteryLevel,
-    isOnline:         isOnline         ?? this.isOnline,
-    lastSeen:         lastSeen         ?? this.lastSeen,
-    latitude:         latitude         ?? this.latitude,
-    longitude:        longitude        ?? this.longitude,
-    speed:            speed            ?? this.speed,
-    activityStatus:   activityStatus   ?? this.activityStatus,
-    isAirplaneMode:   isAirplaneMode   ?? this.isAirplaneMode,
+    id: id,
+    username: username,
+    email: email,
+    avatarUrl:         avatarUrl         ?? this.avatarUrl,
+    batteryLevel:      batteryLevel      ?? this.batteryLevel,
+    isOnline:          isOnline          ?? this.isOnline,
+    lastSeen:          lastSeen          ?? this.lastSeen,
+    latitude:          latitude          ?? this.latitude,
+    longitude:         longitude         ?? this.longitude,
+    speed:             speed             ?? this.speed,
+    activityStatus:    activityStatus    ?? this.activityStatus,
+    isAirplaneMode:    isAirplaneMode    ?? this.isAirplaneMode,
     locationUpdatedAt: locationUpdatedAt ?? this.locationUpdatedAt,
   );
 }
@@ -109,10 +117,10 @@ class PlaceModel {
     required this.id,
     required this.circleId,
     required this.name,
-    this.isHome = false,
+    required this.isHome,
     required this.latitude,
     required this.longitude,
-    this.radiusM = 150,
+    required this.radiusM,
   });
 
   factory PlaceModel.fromJson(Map<String, dynamic> j) => PlaceModel(
@@ -157,6 +165,10 @@ class TripModel {
     this.pathGeoJson,
   });
 
+  // Getter di comodità per la UI (converte da unità SI)
+  double get distanceKm => distanceM / 1000.0;
+  double get maxSpeedKmh => maxSpeedMs * 3.6;
+
   factory TripModel.fromJson(Map<String, dynamic> j) => TripModel(
     id:           j['id'] as String,
     userId:       j['user_id'] as String? ?? j['userId'] as String? ?? '',
@@ -172,9 +184,6 @@ class TripModel {
     maxSpeedMs:   (j['max_speed_ms'] as num?)?.toDouble() ?? 0,
     pathGeoJson:  j['path_geojson'] as String?,
   );
-
-  double get distanceKm => distanceM / 1000;
-  double get maxSpeedKmh => maxSpeedMs * 3.6;
 }
 
 class DrivingReportModel {

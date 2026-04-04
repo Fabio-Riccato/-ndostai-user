@@ -10,6 +10,7 @@ import '../../../data/repositories/auth_provider.dart';
 import '../../../data/repositories/providers.dart';
 import '../../../data/services/api_service.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../core/utils/avatar_utils.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart' as flutter_secure_storage;
 
@@ -88,7 +89,6 @@ class _GeneralSettingsState extends ConsumerState<_GeneralSettings> {
       final formData = FormData.fromMap({
         'avatar': await MultipartFile.fromFile(xf.path, filename: 'avatar.jpg'),
       });
-      // Usa Dio direttamente per upload multipart
       final dio = Dio(BaseOptions(baseUrl: AppConstants.baseUrl));
       final token = await const flutter_secure_storage.FlutterSecureStorage()
           .read(key: AppConstants.storageKeyToken);
@@ -97,20 +97,24 @@ class _GeneralSettingsState extends ConsumerState<_GeneralSettings> {
       }
       final r = await dio.post('/api/auth/account/avatar', data: formData);
       final avatarUrl = r.data['avatarUrl'] as String?;
+
       if (avatarUrl != null && mounted) {
-        // Aggiorna lo stato locale dell'utente
-        // Ricarica il profilo
-        final me = await ApiService().getMe();
-        // Notifica il provider — per ora facciamo un semplice setState
-        setState(() {});
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Foto profilo aggiornata!'),
-              backgroundColor: AppTheme.success,
-            ),
-          );
+        // Svuota la cache della vecchia immagine così CachedNetworkImage
+        // non mostra quella precedente al prossimo rebuild.
+        final oldUrl = resolveAvatarUrl(ref.read(authProvider).user?.avatarUrl);
+        if (oldUrl != null) {
+          await CachedNetworkImage.evictFromCache(oldUrl);
         }
+
+        // Aggiorna il provider con il nuovo avatarUrl.
+        ref.read(authProvider.notifier).updateAvatarUrl(avatarUrl);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Foto profilo aggiornata!'),
+            backgroundColor: AppTheme.success,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -376,12 +380,13 @@ class _AvatarWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (avatarUrl != null && avatarUrl!.isNotEmpty) {
-      final url = avatarUrl!.startsWith('http')
-          ? avatarUrl!
-          : '${AppConstants.baseUrl}$avatarUrl';
+    // BUG FIX: usa resolveAvatarUrl() da avatar_utils.dart in modo uniforme,
+    // eliminando la logica duplicata e inline che era presente prima.
+    final url = resolveAvatarUrl(avatarUrl);
+    if (url != null) {
       return ClipOval(
         child: CachedNetworkImage(
+          key: ValueKey(url), // forza rebuild quando l'URL cambia
           imageUrl: url,
           width: size,
           height: size,
@@ -662,4 +667,3 @@ class _PermissionTileState extends State<_PermissionTile> {
     },
   );
 }
-

@@ -240,7 +240,21 @@ class _InfoBubble extends StatelessWidget {
         final since = _sinceStr(member.stoppedAt ?? member.locationUpdatedAt);
         return _row(Icons.pause_circle_outline_rounded, Colors.white54, 'Fermo$since');
       default:
-        return _row(Icons.location_on_rounded, Colors.white38, 'Posizione aggiornata');
+      // unknown → controlla luogo vicino e velocità come per "still"
+        if (nearbyPlace != null) {
+          final since = _sinceStr(member.stoppedAt ?? member.locationUpdatedAt);
+          final icon = nearbyPlace!.isHome ? Icons.home_rounded : Icons.place_rounded;
+          return _row(icon, AppTheme.primary, 'Presso "${nearbyPlace!.name}"$since');
+        }
+        if (member.speed >= 5.0) {
+          final kmh = (member.speed * 3.6).round();
+          return _row(Icons.directions_car_filled_rounded, AppTheme.accent, 'In macchina · $kmh km/h');
+        }
+        if (member.speed >= 0.5) {
+          return _row(Icons.directions_walk_rounded, AppTheme.success, 'Camminando');
+        }
+        final since2 = _sinceStr(member.stoppedAt ?? member.locationUpdatedAt);
+        return _row(Icons.pause_circle_outline_rounded, Colors.white54, 'Fermo$since2');
     }
   }
 

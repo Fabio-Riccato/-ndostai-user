@@ -3,8 +3,8 @@ class AppConstants {
 
   // ---- Server ----
   /// Change this to your server's IP/domain
-  static const String baseUrl = 'http://192.168.178.29:3000';
-  static const String wsUrl   = 'ws://192.168.178.29:3000/ws';
+  static const String baseUrl = 'http://192.168.178.27:3000';
+  static const String wsUrl   = 'ws://192.168.178.27:3000/ws';
 
   // ---- Location update intervals ----
   /// Minimum interval between location updates sent to server (adaptive)

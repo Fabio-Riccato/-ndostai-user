@@ -223,12 +223,27 @@ class _LocationText extends StatelessWidget {
         final kmh = (member.speed * 3.6).round();
         return 'In macchina · $kmh km/h${_sinceStr(member.locationUpdatedAt)}';
 
-    // ── DEFAULT ────────────────────────────────────────────
+    // ── UNKNOWN / ALTRO ───────────────────────────────────
+    // "unknown" arriva quando il client non ha ancora classificato
+    // l'attività o la velocità GPS è 0. Lo trattiamo come "still":
+    // se c'è un luogo vicino mostriamo "Presso X", altrimenti
+    // controlliamo la velocità per walking/driving, infine "Fermo".
       default:
-        if (member.locationUpdatedAt != null) {
-          return 'Aggiornato alle ${_timeOnly(member.locationUpdatedAt!)}';
+        final sinceTs = member.stoppedAt ?? member.locationUpdatedAt;
+        // Vicino a un luogo → mostra sempre "Presso"
+        if (nearbyPlace != null) {
+          return 'Presso ${nearbyPlace.name}${_sinceStr(sinceTs)}';
         }
-        return 'Posizione sconosciuta';
+        // Velocità significativa → è in movimento
+        if (member.speed >= 5.0) {
+          final kmh = (member.speed * 3.6).round();
+          return 'In macchina · $kmh km/h${_sinceStr(member.locationUpdatedAt)}';
+        }
+        if (member.speed >= 0.5) {
+          return 'Camminando${_sinceStr(member.locationUpdatedAt)}';
+        }
+        // Fermo senza luogo vicino
+        return 'Fermo${_sinceStr(sinceTs)}';
     }
   }
 

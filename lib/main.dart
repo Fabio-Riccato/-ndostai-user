@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'core/theme/app_theme.dart';
 import 'presentation/router/app_router.dart';
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,9 +21,10 @@ void main() async {
     statusBarIconBrightness: Brightness.light,
   ));
 
-  // Firebase (optional – only needed for push notifications)
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform, // ← aggiungi options
+    );
   } catch (_) {
     // Firebase not configured – push notifications disabled
   }

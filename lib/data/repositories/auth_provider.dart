@@ -15,8 +15,6 @@ class AuthState {
   const AuthState({this.user, this.loading = false, this.error});
   bool get isAuthenticated => user != null;
 
-  // BUG FIX: error deve poter essere resettato a null esplicitamente,
-  // quindi usiamo un sentinel invece di ?? che ignora il null passato.
   AuthState copyWith({UserModel? user, bool? loading, Object? error = _sentinel}) {
     return AuthState(
       user:    user    ?? this.user,
@@ -38,7 +36,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final token = await _storage.read(key: AppConstants.storageKeyToken);
     if (token == null) return false;
     try {
-      // BUG FIX: usa il metodo pubblico esposto da ApiService, non reflection
       final r = await _api.getMe();
       final user = UserModel.fromJson(r['user'] as Map<String, dynamic>);
       state = AuthState(user: user);
@@ -51,7 +48,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> login(String email, String password, {String? deviceToken}) async {
-    // BUG FIX: reset esplicito di error a null prima di ogni tentativo
     state = AuthState(loading: true);
     try {
       final r = await _api.login(email, password, deviceToken: deviceToken);
@@ -99,8 +95,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = const AuthState();
   }
 
+  // BUG FIX: nuovo metodo per aggiornare solo l'avatarUrl nello stato
+  // senza perdere tutti gli altri dati dell'utente corrente.
+  void updateAvatarUrl(String avatarUrl) {
+    final current = state.user;
+    if (current == null) return;
+    state = state.copyWith(user: current.copyWith(avatarUrl: avatarUrl));
+  }
+
   String _parseDioError(DioException e) {
-    // Errori di rete (nessuna connessione, timeout, IP sbagliato)
     if (e.type == DioExceptionType.connectionTimeout ||
         e.type == DioExceptionType.receiveTimeout ||
         e.type == DioExceptionType.sendTimeout) {
@@ -110,10 +113,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       return 'Impossibile connettersi al server (${AppConstants.baseUrl})\nVerifica IP e firewall';
     }
 
-    // Errori HTTP con risposta dal server
     final status = e.response?.statusCode;
     final data   = e.response?.data;
-    // Estrai il messaggio di errore dal JSON del server se presente
     String? serverMsg;
     if (data is Map) serverMsg = data['error'] as String?;
 
