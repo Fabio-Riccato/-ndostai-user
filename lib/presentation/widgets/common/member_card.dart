@@ -204,10 +204,13 @@ class _LocationText extends StatelessWidget {
 
     // ── FERMO ──────────────────────────────────────────────
       case 'still':
-      // Usa stoppedAt (quando si è fermato davvero) oppure locationUpdatedAt
         final sinceTs = member.stoppedAt ?? member.locationUpdatedAt;
         if (nearbyPlace != null) {
           return 'Presso ${nearbyPlace.name}${_sinceStr(sinceTs)}';
+        }
+        // Usa l'indirizzo da reverse geocoding se disponibile
+        if (member.nearbyAddress != null && member.nearbyAddress!.isNotEmpty) {
+          return 'Vicino a ${member.nearbyAddress}${_sinceStr(sinceTs)}';
         }
         return 'Fermo${_sinceStr(sinceTs)}';
 
@@ -215,6 +218,9 @@ class _LocationText extends StatelessWidget {
       case 'walking':
         if (nearbyPlace != null) {
           return 'A piedi vicino a ${nearbyPlace.name}${_sinceStr(member.locationUpdatedAt)}';
+        }
+        if (member.nearbyAddress != null && member.nearbyAddress!.isNotEmpty) {
+          return 'A piedi vicino a ${member.nearbyAddress}${_sinceStr(member.locationUpdatedAt)}';
         }
         return 'Camminando${_sinceStr(member.locationUpdatedAt)}';
 
@@ -230,19 +236,22 @@ class _LocationText extends StatelessWidget {
     // controlliamo la velocità per walking/driving, infine "Fermo".
       default:
         final sinceTs = member.stoppedAt ?? member.locationUpdatedAt;
-        // Vicino a un luogo → mostra sempre "Presso"
         if (nearbyPlace != null) {
           return 'Presso ${nearbyPlace.name}${_sinceStr(sinceTs)}';
         }
-        // Velocità significativa → è in movimento
         if (member.speed >= 5.0) {
           final kmh = (member.speed * 3.6).round();
           return 'In macchina · $kmh km/h${_sinceStr(member.locationUpdatedAt)}';
         }
         if (member.speed >= 0.5) {
+          if (member.nearbyAddress != null && member.nearbyAddress!.isNotEmpty) {
+            return 'A piedi vicino a ${member.nearbyAddress}${_sinceStr(member.locationUpdatedAt)}';
+          }
           return 'Camminando${_sinceStr(member.locationUpdatedAt)}';
         }
-        // Fermo senza luogo vicino
+        if (member.nearbyAddress != null && member.nearbyAddress!.isNotEmpty) {
+          return 'Vicino a ${member.nearbyAddress}${_sinceStr(sinceTs)}';
+        }
         return 'Fermo${_sinceStr(sinceTs)}';
     }
   }

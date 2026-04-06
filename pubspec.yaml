@@ -1,5 +1,5 @@
-name: family_track
-description: Family location sharing app – FamilyTrack
+name: ndostai
+description: Applicazione per condividere la propria posizione
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -13,6 +13,8 @@ dependencies:
   # State management
   flutter_riverpod: ^2.5.1
   riverpod_annotation: ^2.3.5
+
+  cupertino_icons: ^1.0.8
 
   # Navigation
   go_router: ^14.1.4

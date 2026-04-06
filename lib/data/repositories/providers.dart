@@ -23,7 +23,7 @@ class CircleSelectionNotifier extends StateNotifier<String?> {
 }
 
 final selectedCircleProvider = StateNotifierProvider<CircleSelectionNotifier, String?>(
-  (_) => CircleSelectionNotifier(),
+      (_) => CircleSelectionNotifier(),
 );
 
 // ---- Circles list ----
@@ -64,7 +64,7 @@ class CirclesNotifier extends StateNotifier<AsyncValue<List<CircleModel>>> {
 }
 
 final circlesProvider = StateNotifierProvider<CirclesNotifier, AsyncValue<List<CircleModel>>>(
-  (_) => CirclesNotifier(),
+      (_) => CirclesNotifier(),
 );
 
 // ---- Members for selected circle (real-time) ----
@@ -108,6 +108,10 @@ class MembersNotifier extends StateNotifier<AsyncValue<List<CircleMemberModel>>>
         batteryLevel:   (data['batteryLevel'] as num?)?.toInt(),
         isOnline:       true,
         locationUpdatedAt: DateTime.now(),
+        stoppedAt: data['stoppedAt'] != null
+            ? DateTime.tryParse(data['stoppedAt'] as String)
+            : null,
+        nearbyAddress: data['nearbyAddress'] as String?,
       );
       final newList = List<CircleMemberModel>.from(members);
       newList[idx] = updated as CircleMemberModel;
@@ -134,7 +138,7 @@ class MembersNotifier extends StateNotifier<AsyncValue<List<CircleMemberModel>>>
 }
 
 final membersProvider = StateNotifierProvider<MembersNotifier, AsyncValue<List<CircleMemberModel>>>(
-  (_) => MembersNotifier(),
+      (_) => MembersNotifier(),
 );
 
 // ---- Places ----
@@ -170,7 +174,7 @@ class PlacesNotifier extends StateNotifier<AsyncValue<List<PlaceModel>>> {
 }
 
 final placesProvider = StateNotifierProvider<PlacesNotifier, AsyncValue<List<PlaceModel>>>(
-  (_) => PlacesNotifier(),
+      (_) => PlacesNotifier(),
 );
 
 // ---- Driving Reports ----

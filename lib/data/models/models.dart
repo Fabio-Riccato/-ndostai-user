@@ -13,6 +13,7 @@ class UserModel {
   final bool isAirplaneMode;
   final DateTime? locationUpdatedAt;
   final DateTime? stoppedAt;
+  final String? nearbyAddress;
 
   const UserModel({
     required this.id,
@@ -29,6 +30,7 @@ class UserModel {
     this.isAirplaneMode = false,
     this.locationUpdatedAt,
     this.stoppedAt,
+    this.nearbyAddress,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> j) => UserModel(
@@ -45,10 +47,10 @@ class UserModel {
     activityStatus:   j['activity_status'] as String? ?? 'unknown',
     isAirplaneMode:   j['is_airplane_mode'] as bool? ?? false,
     locationUpdatedAt: j['location_updated_at'] != null ? DateTime.tryParse(j['location_updated_at'] as String) : null,
-    stoppedAt: j['stopped_at'] != null ? DateTime.tryParse(j['stopped_at'] as String) : null,
+    stoppedAt:        j['stopped_at'] != null ? DateTime.tryParse(j['stopped_at'] as String) : null,
+    nearbyAddress:    j['nearby_address'] as String? ?? j['nearbyAddress'] as String?,
   );
 
-  // BUG FIX: aggiunto avatarUrl a copyWith (era mancante)
   UserModel copyWith({
     String? avatarUrl,
     double? latitude,
@@ -60,10 +62,12 @@ class UserModel {
     bool? isAirplaneMode,
     DateTime? locationUpdatedAt,
     DateTime? lastSeen,
+    DateTime? stoppedAt,
+    Object? nearbyAddress = _keep,
   }) => UserModel(
-    id: id,
-    username: username,
-    email: email,
+    id:                id,
+    username:          username,
+    email:             email,
     avatarUrl:         avatarUrl         ?? this.avatarUrl,
     batteryLevel:      batteryLevel      ?? this.batteryLevel,
     isOnline:          isOnline          ?? this.isOnline,
@@ -74,8 +78,15 @@ class UserModel {
     activityStatus:    activityStatus    ?? this.activityStatus,
     isAirplaneMode:    isAirplaneMode    ?? this.isAirplaneMode,
     locationUpdatedAt: locationUpdatedAt ?? this.locationUpdatedAt,
+    stoppedAt:         stoppedAt         ?? this.stoppedAt,
+    nearbyAddress:     nearbyAddress == _keep
+        ? this.nearbyAddress
+        : nearbyAddress as String?,
   );
 }
+
+// Sentinel per copyWith — distingue "parametro non passato" da "null esplicito"
+const Object _keep = Object();
 
 class CircleModel {
   final String id;
@@ -117,10 +128,10 @@ class PlaceModel {
     required this.id,
     required this.circleId,
     required this.name,
-    required this.isHome,
+    this.isHome = false,
     required this.latitude,
     required this.longitude,
-    required this.radiusM,
+    this.radiusM = 150,
   });
 
   factory PlaceModel.fromJson(Map<String, dynamic> j) => PlaceModel(
@@ -236,6 +247,8 @@ class CircleMemberModel extends UserModel {
     super.activityStatus,
     super.isAirplaneMode,
     super.locationUpdatedAt,
+    super.stoppedAt,
+    super.nearbyAddress,
     this.isAdmin = false,
     this.drivingDetection = true,
     this.flightDetection = true,
@@ -243,22 +256,24 @@ class CircleMemberModel extends UserModel {
   });
 
   factory CircleMemberModel.fromJson(Map<String, dynamic> j) => CircleMemberModel(
-    id:               j['id'] as String,
-    username:         j['username'] as String,
-    email:            j['email'] as String? ?? '',
-    avatarUrl:        j['avatar_url'] as String? ?? j['avatarUrl'] as String?,
-    batteryLevel:     (j['battery_level'] as num?)?.toInt() ?? 100,
-    isOnline:         j['is_online'] as bool? ?? false,
-    lastSeen:         j['last_seen'] != null ? DateTime.tryParse(j['last_seen'] as String) : null,
-    latitude:         (j['latitude'] as num?)?.toDouble(),
-    longitude:        (j['longitude'] as num?)?.toDouble(),
-    speed:            (j['speed'] as num?)?.toDouble() ?? 0,
-    activityStatus:   j['activity_status'] as String? ?? 'unknown',
-    isAirplaneMode:   j['is_airplane_mode'] as bool? ?? false,
+    id:                j['id'] as String,
+    username:          j['username'] as String,
+    email:             j['email'] as String? ?? '',
+    avatarUrl:         j['avatar_url'] as String? ?? j['avatarUrl'] as String?,
+    batteryLevel:      (j['battery_level'] as num?)?.toInt() ?? 100,
+    isOnline:          j['is_online'] as bool? ?? false,
+    lastSeen:          j['last_seen'] != null ? DateTime.tryParse(j['last_seen'] as String) : null,
+    latitude:          (j['latitude'] as num?)?.toDouble(),
+    longitude:         (j['longitude'] as num?)?.toDouble(),
+    speed:             (j['speed'] as num?)?.toDouble() ?? 0,
+    activityStatus:    j['activity_status'] as String? ?? 'unknown',
+    isAirplaneMode:    j['is_airplane_mode'] as bool? ?? false,
     locationUpdatedAt: j['location_updated_at'] != null ? DateTime.tryParse(j['location_updated_at'] as String) : null,
-    isAdmin:          j['is_admin'] as bool? ?? false,
-    drivingDetection: j['driving_detection'] as bool? ?? true,
-    flightDetection:  j['flight_detection'] as bool? ?? true,
+    stoppedAt:         j['stopped_at'] != null ? DateTime.tryParse(j['stopped_at'] as String) : null,
+    nearbyAddress:     j['nearby_address'] as String? ?? j['nearbyAddress'] as String?,
+    isAdmin:           j['is_admin'] as bool? ?? false,
+    drivingDetection:  j['driving_detection'] as bool? ?? true,
+    flightDetection:   j['flight_detection'] as bool? ?? true,
     placeNotifications: j['place_notifications'] as bool? ?? true,
   );
 }
